@@ -44,7 +44,7 @@ func find(opts Options, comp chan *Result) {
 	}
 
 	for {
-		files, err := dir.Readdir(512)
+		files, err := dir.Readdir(64)
 		switch err {
 		case io.EOF:
 			goto done
@@ -72,6 +72,10 @@ func find(opts Options, comp chan *Result) {
 	}
 
 done:
+	// release open file
+	dir.Close()
+	openFileSem <- 1
+
 	// wait for gophers to complete
 	// update total result with results from gophers
 	for count > 0 {
@@ -83,9 +87,6 @@ done:
 
 	// signal parent gopher
 	comp <- res
-
-	// release open file
-	openFileSem <- 1
 }
 
 func main() {
@@ -107,9 +108,9 @@ func main() {
 		opts.path = args[0]
 	}
 
-	// limit number of open files to 1000
-	openFileSem = make(chan int, 1000)
-	for i := 0; i < 1000; i++ {
+	// limit number of open files to 512
+	openFileSem = make(chan int, 512)
+	for i := 0; i < 512; i++ {
 		openFileSem <- 1
 	}
 
